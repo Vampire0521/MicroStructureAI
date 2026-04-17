@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steel Diagnostic Tool</title>
+    <meta name="description"
+        content="AI-powered steel microstructure and surface defect analyzer with Grad-CAM visualization">
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="bg-grid"></div>
+
+    <header class="header" id="header">
+        <div class="header-content">
+            <h1 class="logo">
+                <span class="logo-icon">&#x1F52C;</span>
+                Steel Diagnostic Tool
+            </h1>
+            <p class="subtitle">AI-Powered Microstructure &amp; Surface Defect Analyzer</p>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- MODE TOGGLE -->
+        <section class="mode-selector glass-card" id="mode-selector">
+            <h2 class="section-title">Analysis Mode</h2>
+            <div class="toggle-container">
+                <button class="mode-btn active" id="btn-micro" onclick="setMode('micro')">
+                    <span class="mode-icon">&#x1F52C;</span>
+                    <span class="mode-label">Microstructure</span>
+                    <span class="mode-desc">Identify phase, heat treatment, properties</span>
+                </button>
+                <button class="mode-btn" id="btn-surface" onclick="setMode('surface')">
+                    <span class="mode-icon">&#x26A0;</span>
+                    <span class="mode-label">Surface Defect</span>
+                    <span class="mode-desc">Detect defects, causes, remedies</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- UPLOAD ZONE -->
+        <section class="upload-section glass-card" id="upload-section">
+            <div class="dropzone" id="dropzone">
+                <div class="dropzone-content">
+                    <div class="upload-icon" id="upload-icon">&#x1F4F7;</div>
+                    <h3 id="upload-title">Drop your image here</h3>
+                    <p class="upload-hint" id="upload-hint">or click to browse &bull; supports PNG, JPG, TIF, BMP</p>
+                    <input type="file" id="file-input" accept="image/*" hidden>
+                </div>
+                <div class="preview-container" id="preview-container" style="display:none">
+                    <img id="preview-img" class="preview-img" alt="Preview">
+                    <button class="btn-clear" id="btn-clear" onclick="clearUpload()">&#x2715;</button>
+                </div>
+            </div>
+            <button class="btn-analyze" id="btn-analyze" disabled onclick="analyzeImage()">
+                <span id="btn-text">Analyze</span>
+                <div class="spinner" id="spinner" style="display:none"></div>
+            </button>
+        </section>
+
+        <!-- LOADING STATE -->
+        <section class="loading-section glass-card" id="loading-section" style="display:none">
+            <div class="loading-content">
+                <div class="loading-spinner-large"></div>
+                <h3>Analyzing...</h3>
+                <p class="loading-step" id="loading-step">Processing image with ResNet50</p>
+            </div>
+        </section>
+
+        <!-- RESULTS -->
+        <section class="results-section" id="results-section" style="display:none">
+
+            <!-- PREDICTION HEADER -->
+            <div class="result-header glass-card" id="result-header">
+                <div class="prediction-badge" id="prediction-badge">
+                    <span class="pred-name" id="pred-name"></span>
+                    <span class="pred-confidence" id="pred-confidence"></span>
+                </div>
+                <p class="pred-description" id="pred-description"></p>
+                <!-- Severity badge (surface mode only) -->
+                <div class="severity-badge" id="severity-badge" style="display:none">
+                    <span id="severity-text"></span>
+                </div>
+                <!-- Defect alert (micro mode, when microstructural defect detected) -->
+                <div class="defect-alert" id="defect-alert" style="display:none">
+                    <div class="alert-icon">&#x26A0;</div>
+                    <div class="alert-content">
+                        <strong>Microstructural Defect Detected</strong>
+                        <p id="defect-problem"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GRAD-CAM IMAGES -->
+            <div class="gradcam-grid glass-card">
+                <h2 class="section-title">Grad-CAM Visualization</h2>
+                <div class="gradcam-images">
+                    <div class="gradcam-item">
+                        <img id="img-original" alt="Original">
+                        <span>Original</span>
+                    </div>
+                    <div class="gradcam-item">
+                        <img id="img-heatmap" alt="Heatmap">
+                        <span>Attention Map</span>
+                    </div>
+                    <div class="gradcam-item">
+                        <img id="img-overlay" alt="Overlay">
+                        <span>Overlay</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- REPORT CARDS (Micro mode) -->
+            <div class="report-cards" id="micro-report" style="display:none">
+                <div class="report-card glass-card" id="card-heat-treatment">
+                    <h3><span class="card-icon">&#x1F525;</span> Heat Treatment</h3>
+                    <ul id="heat-treatment-list"></ul>
+                </div>
+                <div class="report-card glass-card" id="card-composition">
+                    <h3><span class="card-icon">&#x2697;</span> Composition</h3>
+                    <div id="composition-content"></div>
+                </div>
+                <div class="report-card glass-card" id="card-properties">
+                    <h3><span class="card-icon">&#x1F4CA;</span> Mechanical Properties</h3>
+                    <div id="properties-content"></div>
+                </div>
+                <div class="report-card glass-card" id="card-applications">
+                    <h3><span class="card-icon">&#x1F3ED;</span> Applications</h3>
+                    <ul id="applications-list"></ul>
+                </div>
+            </div>
+
+            <!-- DEFECT REPORT CARDS (Surface mode) -->
+            <div class="report-cards" id="surface-report" style="display:none">
+                <div class="report-card glass-card defect-card">
+                    <h3><span class="card-icon">&#x1F50D;</span> Root Causes</h3>
+                    <ul id="causes-list"></ul>
+                </div>
+                <div class="report-card glass-card defect-card">
+                    <h3><span class="card-icon">&#x1F527;</span> Recommended Remedies</h3>
+                    <ul id="remedies-list"></ul>
+                </div>
+                <div class="report-card glass-card defect-card">
+                    <h3><span class="card-icon">&#x26A0;</span> Affected Properties</h3>
+                    <ul id="affected-props-list"></ul>
+                </div>
+                <div class="report-card glass-card defect-card" id="card-standards" style="display:none">
+                    <h3><span class="card-icon">&#x1F4CB;</span> Industry Standard</h3>
+                    <p id="standards-text"></p>
+                </div>
+            </div>
+
+            <!-- MICROSTRUCTURAL DEFECT REMEDIES (micro mode, when defect detected) -->
+            <div class="report-cards" id="micro-defect-report" style="display:none">
+                <div class="report-card glass-card defect-card full-width">
+                    <h3><span class="card-icon">&#x26A0;</span> Defect: Causes &amp; Remedies</h3>
+                    <div class="defect-columns">
+                        <div>
+                            <h4>Probable Causes</h4>
+                            <ul id="micro-defect-causes"></ul>
+                        </div>
+                        <div>
+                            <h4>Corrective Actions</h4>
+                            <ul id="micro-defect-remedies"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PROBABILITY DISTRIBUTION -->
+            <div class="prob-chart glass-card">
+                <h2 class="section-title">Class Probabilities</h2>
+                <div id="prob-bars"></div>
+            </div>
+
+            <!-- FUN FACT (micro mode only) -->
+            <div class="fun-fact glass-card" id="fun-fact" style="display:none">
+                <span class="fact-icon">&#x1F4A1;</span>
+                <p id="fact-text"></p>
+            </div>
+
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>Enhanced Steel Diagnostic Tool &mdash; ResNet50 + Grad-CAM + Knowledge Bases</p>
+    </footer>
+
+    <script>
+        // ── State ──────────────────────────────────────────────────────
+        let currentMode = 'micro';
+        let selectedFile = null;
+
+        // ── Mode Toggle ────────────────────────────────────────────────
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('btn-micro').classList.toggle('active', mode === 'micro');
+            document.getElementById('btn-surface').classList.toggle('active', mode === 'surface');
+            // Update upload hint
+            const hint = mode === 'micro'
+                ? 'Upload a microstructure micrograph (optical/SEM)'
+                : 'Upload a steel surface image (NEU-style)';
+            document.getElementById('upload-hint').textContent = hint;
+            // Hide previous results
+            document.getElementById('results-section').style.display = 'none';
+        }
+
+        // ── File Upload ────────────────────────────────────────────────
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length) handleFile(fileInput.files[0]);
+        });
+
+        function handleFile(file) {
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('preview-img').src = e.target.result;
+                document.getElementById('preview-container').style.display = 'flex';
+                document.querySelector('.dropzone-content').style.display = 'none';
+                document.getElementById('btn-analyze').disabled = false;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearUpload() {
+            selectedFile = null;
+            fileInput.value = '';
+            document.getElementById('preview-container').style.display = 'none';
+            document.querySelector('.dropzone-content').style.display = 'flex';
+            document.getElementById('btn-analyze').disabled = true;
+            document.getElementById('results-section').style.display = 'none';
+        }
+
+        // ── Analysis ───────────────────────────────────────────────────
+        async function analyzeImage() {
+            if (!selectedFile) return;
+
+            // Show loading
+            document.getElementById('btn-analyze').disabled = true;
+            document.getElementById('btn-text').textContent = 'Analyzing...';
+            document.getElementById('spinner').style.display = 'inline-block';
+            document.getElementById('loading-section').style.display = 'block';
+            document.getElementById('results-section').style.display = 'none';
+
+            const steps = currentMode === 'micro'
+                ? ['Preprocessing image...', 'Running ResNet50 classifier...', 'Generating Grad-CAM...', 'Looking up knowledge base...']
+                : ['Preprocessing image...', 'Running defect classifier...', 'Generating Grad-CAM...', 'Looking up defect database...'];
+
+            let stepIdx = 0;
+            const stepTimer = setInterval(() => {
+                stepIdx = Math.min(stepIdx + 1, steps.length - 1);
+                document.getElementById('loading-step').textContent = steps[stepIdx];
+            }, 800);
+
+            try {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                formData.append('mode', currentMode);
+
+                const response = await fetch('/analyze', { method: 'POST', body: formData });
+                const data = await response.json();
+
+                clearInterval(stepTimer);
+
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                displayResults(data);
+            } catch (err) {
+                clearInterval(stepTimer);
+                alert('Analysis failed: ' + err.message);
+            } finally {
+                document.getElementById('loading-section').style.display = 'none';
+                document.getElementById('btn-analyze').disabled = false;
+                document.getElementById('btn-text').textContent = 'Analyze';
+                document.getElementById('spinner').style.display = 'none';
+            }
+        }
+
+        // ── Display Results ────────────────────────────────────────────
+        function displayResults(data) {
+            const mode = data.mode || currentMode;
+
+            // Header
+            const displayName = data.kb_name.replace(/_/g, ' ');
+            document.getElementById('pred-name').textContent = displayName;
+            document.getElementById('pred-confidence').textContent =
+                (data.confidence * 100).toFixed(1) + '%';
+
+            // Description
+            const kb = data.knowledge || {};
+            document.getElementById('pred-description').textContent =
+                kb.description || '';
+
+            // Severity badge (surface mode)
+            const severityBadge = document.getElementById('severity-badge');
+            if (mode === 'surface' && kb.severity) {
+                severityBadge.style.display = 'inline-block';
+                const severityText = document.getElementById('severity-text');
+                severityText.textContent = 'Severity: ' + kb.severity;
+                severityBadge.className = 'severity-badge severity-' +
+                    kb.severity.toLowerCase().split(' ')[0];
+            } else {
+                severityBadge.style.display = 'none';
+            }
+
+            // Defect alert (micro mode)
+            const defectAlert = document.getElementById('defect-alert');
+            if (mode === 'micro' && data.is_defect && data.defect_info) {
+                defectAlert.style.display = 'flex';
+                document.getElementById('defect-problem').textContent =
+                    data.defect_info.problem || '';
+            } else {
+                defectAlert.style.display = 'none';
+            }
+
+            // Grad-CAM images
+            document.getElementById('img-original').src = 'data:image/png;base64,' + data.original_b64;
+            document.getElementById('img-heatmap').src = 'data:image/png;base64,' + data.heatmap_b64;
+            document.getElementById('img-overlay').src = 'data:image/png;base64,' + data.overlay_b64;
+
+            // Mode-specific report cards
+            const microReport = document.getElementById('micro-report');
+            const surfaceReport = document.getElementById('surface-report');
+            const microDefectReport = document.getElementById('micro-defect-report');
+            const funFact = document.getElementById('fun-fact');
+
+            microReport.style.display = 'none';
+            surfaceReport.style.display = 'none';
+            microDefectReport.style.display = 'none';
+            funFact.style.display = 'none';
+
+            if (mode === 'micro') {
+                displayMicroReport(kb, data);
+            } else {
+                displaySurfaceReport(kb);
+            }
+
+            // Probability bars
+            displayProbBars(data.all_probs);
+
+            // Show results
+            document.getElementById('results-section').style.display = 'block';
+            document.getElementById('result-header').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function displayMicroReport(kb, data) {
+            const microReport = document.getElementById('micro-report');
+            microReport.style.display = 'grid';
+
+            // Heat treatment
+            const htList = document.getElementById('heat-treatment-list');
+            htList.innerHTML = '';
+            if (kb.heat_treatment) {
+                kb.heat_treatment.forEach(ht => {
+                    const li = document.createElement('li');
+                    li.textContent = ht;
+                    htList.appendChild(li);
+                });
+            }
+
+            // Composition
+            const compDiv = document.getElementById('composition-content');
+            compDiv.innerHTML = '';
+            if (kb.composition_range) {
+                const table = document.createElement('table');
+                table.className = 'comp-table';
+                for (const [key, val] of Object.entries(kb.composition_range)) {
+                    const row = table.insertRow();
+                    row.insertCell().textContent = key;
+                    row.insertCell().textContent = val;
+                }
+                compDiv.appendChild(table);
+            }
+
+            // Properties
+            const propsDiv = document.getElementById('properties-content');
+            propsDiv.innerHTML = '';
+            if (kb.mechanical_properties) {
+                const table = document.createElement('table');
+                table.className = 'props-table';
+                for (const [key, val] of Object.entries(kb.mechanical_properties)) {
+                    const row = table.insertRow();
+                    row.insertCell().textContent = key.replace(/_/g, ' ');
+                    row.insertCell().textContent = val;
+                }
+                propsDiv.appendChild(table);
+            }
+
+            // Applications
+            const appList = document.getElementById('applications-list');
+            appList.innerHTML = '';
+            if (kb.applications) {
+                kb.applications.forEach(app => {
+                    const li = document.createElement('li');
+                    li.textContent = app;
+                    appList.appendChild(li);
+                });
+            }
+
+            // Fun fact
+            if (kb.interesting_fact) {
+                document.getElementById('fun-fact').style.display = 'flex';
+                document.getElementById('fact-text').textContent = kb.interesting_fact;
+            }
+
+            // Microstructural defect causes/remedies
+            if (data.is_defect && data.defect_info) {
+                const mdr = document.getElementById('micro-defect-report');
+                mdr.style.display = 'grid';
+
+                const causesList = document.getElementById('micro-defect-causes');
+                causesList.innerHTML = '';
+                (data.defect_info.causes || []).forEach(c => {
+                    const li = document.createElement('li');
+                    li.textContent = c;
+                    causesList.appendChild(li);
+                });
+
+                const remediesList = document.getElementById('micro-defect-remedies');
+                remediesList.innerHTML = '';
+                (data.defect_info.remedies || []).forEach(r => {
+                    const li = document.createElement('li');
+                    li.textContent = r;
+                    remediesList.appendChild(li);
+                });
+            }
+        }
+
+        function displaySurfaceReport(kb) {
+            const surfaceReport = document.getElementById('surface-report');
+            surfaceReport.style.display = 'grid';
+
+            // Causes
+            const causesList = document.getElementById('causes-list');
+            causesList.innerHTML = '';
+            if (kb.causes) {
+                kb.causes.forEach(c => {
+                    const li = document.createElement('li');
+                    li.textContent = c;
+                    causesList.appendChild(li);
+                });
+            }
+
+            // Remedies
+            const remediesList = document.getElementById('remedies-list');
+            remediesList.innerHTML = '';
+            if (kb.remedies) {
+                kb.remedies.forEach(r => {
+                    const li = document.createElement('li');
+                    li.textContent = r;
+                    remediesList.appendChild(li);
+                });
+            }
+
+            // Affected properties
+            const propsList = document.getElementById('affected-props-list');
+            propsList.innerHTML = '';
+            if (kb.affected_properties) {
+                kb.affected_properties.forEach(p => {
+                    const li = document.createElement('li');
+                    li.textContent = p;
+                    propsList.appendChild(li);
+                });
+            }
+
+            // Industry standards
+            const standardsCard = document.getElementById('card-standards');
+            if (kb.industry_standards) {
+                standardsCard.style.display = 'block';
+                document.getElementById('standards-text').textContent = kb.industry_standards;
+            } else {
+                standardsCard.style.display = 'none';
+            }
+        }
+
+        function displayProbBars(allProbs) {
+            const container = document.getElementById('prob-bars');
+            container.innerHTML = '';
+            const sorted = Object.entries(allProbs).sort((a, b) => b[1] - a[1]);
+
+            sorted.forEach(([name, prob], idx) => {
+                const bar = document.createElement('div');
+                bar.className = 'prob-bar-row';
+                const pct = (prob * 100).toFixed(1);
+                const isTop = idx === 0;
+                bar.innerHTML = `
+                    <span class="prob-name">${name.replace(/_/g, ' ')}</span>
+                    <div class="prob-bar-track">
+                        <div class="prob-bar-fill ${isTop ? 'top' : ''}"
+                             style="width:${pct}%"></div>
+                    </div>
+                    <span class="prob-pct">${pct}%</span>
+                `;
+                container.appendChild(bar);
+            });
+        }
+    </script>
+</body>
+
+</html>

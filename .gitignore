@@ -1,0 +1,52 @@
+# ── Trained Models (too large for GitHub, use Git LFS) ──
+models/*.pth
+models/*.pt
+models/*.onnx
+
+# ── Dataset (download separately) ──
+data/
+
+# ── Temporary upload zip ──
+colab_upload.zip
+
+# ── Generated outputs (reproducible) ──
+outputs/*.png
+outputs/*.jpg
+outputs/*.jpeg
+
+# ── Python ──
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# ── Virtual Environment ──
+venv/
+.venv/
+env/
+ENV/
+
+# ── IDE / Editor ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# ── OS Files ──
+Thumbs.db
+.DS_Store
+desktop.ini
+*.tmp
+
+# ── Jupyter ──
+.ipynb_checkpoints/
+
+# ── Logs ──
+*.log
