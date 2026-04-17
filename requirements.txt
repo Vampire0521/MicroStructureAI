@@ -7,7 +7,7 @@ scikit-image>=0.21.0
 
 # Image processing
 Pillow>=10.0.0
-opencv-python>=4.8.0
+opencv-python-headless>=4.8.0
 
 # Visualization
 matplotlib>=3.7.0
