@@ -1,3 +1,13 @@
+---
+title: MicroStructureAI
+emoji: 🔬
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+app_port: 7860
+---
+
 <p align="center">
   <h1 align="center">🔬 MicroStructureAI</h1>
   <p align="center">
