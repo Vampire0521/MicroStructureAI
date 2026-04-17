@@ -186,7 +186,11 @@ class SurfaceModelManager(BaseModelManager):
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Serve the main upload page."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    try:
+        return templates.TemplateResponse(request=request, name="index.html")
+    except Exception as e:
+        import traceback
+        return HTMLResponse(content=f"<pre>Error loading index.html:\n{str(e)}\n\n{traceback.format_exc()}</pre>", status_code=500)
 
 
 @app.post("/analyze")
